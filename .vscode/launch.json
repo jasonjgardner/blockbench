@@ -1,0 +1,28 @@
+{
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Blockbench",
+      "program": "${workspaceFolder}/main.js",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "outFiles": [
+        "${workspaceFolder}/**/*.js"
+      ],
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd"
+      },
+      "runtimeArgs": [
+        ".",
+        "--inspect=5858"
+      ],
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "sourceMaps": true,
+      "autoAttachChildProcesses": true
+    }
+  ]
+}
