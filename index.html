@@ -314,7 +314,7 @@
 				<div id="mobile_panel_overlay" hidden></div>
 			</div>
 			<div id="status_bar"></div>
-
+			<div id="mcp_status_bar"></div>
 			<div id="panel_selector_bar"></div>
 
 		</div>
@@ -322,6 +322,15 @@
 	</div>
 	
 	<script src="js/boot_loader.js"></script>
+	<script>
+		if (isApp) {
+			try {
+				document.write("<script src='js/mcp.js'><\/script>");
+			} catch (err) {
+				console.error("Error loading MCP script:", err);
+			}
+		}
+	</script>
 	<script>
 		if (!Blockbench || !Blockbench.setup_successful) {
 			document.getElementById('loading_error_message').style.display = 'block'
@@ -332,5 +341,6 @@
 			document.getElementById('loading_error_message').innerHTML = 'No loading errors...'
 		}
 	</script>
+	
 </body>
 </html>
