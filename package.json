@@ -136,8 +136,11 @@
 	},
 	"dependencies": {
 		"@electron/remote": "^2.1.2",
+		"@modelcontextprotocol/sdk": "^1.0.0",
 		"electron-color-picker": "^0.2.0",
 		"electron-updater": "^6.3.4",
-		"gifenc": "^1.0.3"
+		"express": "^5.1.0",
+		"gifenc": "^1.0.3",
+		"zod": "^3.24.3"
 	}
 }
