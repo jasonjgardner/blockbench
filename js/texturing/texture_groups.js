@@ -87,29 +87,31 @@ class TextureGroup {
 	}
 
 	updateMaterial() {
-		/**
-		 * @link https://threejs.org/docs/index.html#api/en/materials/MeshStandardMaterial
-		 * @type {THREE.MeshStandardMaterial}
-		 */
-		let material = this._static.properties.material;
-		
-		if (!material) {
-			material = this._static.properties.material = new THREE.MeshStandardMaterial({
-				envMapIntensity: 0.8,
-				alphaTest: 0.05,
-			});
-		}
+               /**
+                * @link https://threejs.org/docs/index.html#api/en/materials/MeshPhysicalMaterial
+                * @type {THREE.MeshPhysicalMaterial}
+                */
+               let material = this._static.properties.material;
+
+               if (!material) {
+                       material = this._static.properties.material = new THREE.MeshPhysicalMaterial({
+                               envMapIntensity: 0.8,
+                               alphaTest: 0.05,
+                               transparent: true,
+                       });
+               }
 
 		if (PreviewScene.active) {
 			const g = new THREE.PMREMGenerator(Preview.selected.renderer);
 			material.envMap = g.fromScene(Canvas.scene, 0.0, 100, 1024).texture;
 		}
 
-		let textures = this.getTextures();
-		let color_tex = textures.find(t => t.pbr_channel == 'color');
-		let normal_tex = textures.find(t => t.pbr_channel == 'normal');
-		let height_tex = textures.find(t => t.pbr_channel == 'height');
-		let mer_tex = textures.find(t => t.pbr_channel == 'mer');
+               let textures = this.getTextures();
+               let color_tex = textures.find(t => t.pbr_channel == 'color');
+               let normal_tex = textures.find(t => t.pbr_channel == 'normal');
+               let height_tex = textures.find(t => t.pbr_channel == 'height');
+               let mer_tex = textures.find(t => t.pbr_channel == 'mer');
+               let subsurface = this.material_config.subsurface_value;
 
 		// Albedo
 		if (color_tex) {
@@ -204,24 +206,41 @@ class TextureGroup {
 				material[key] = new THREE.Texture(canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
 				material[key].needsUpdate = true;
 			}
-			generateMap(0, 'metalnessMap');
-			generateMap(1, 'emissiveMap');
-			generateMap(2, 'roughnessMap');
-			material.emissive.set(0xffffff);
-			material.emissiveIntensity = 1;
-			material.metalness = 1;
-			material.roughness = 1;
-		} else {
-			material.metalnessMap = null;
-			material.emissiveMap = material.map;
-			material.roughnessMap = null;
-			material.emissive.set(0xffffff);
-			material.metalness = this.material_config.mer_value[0] / 255;
-			material.emissiveIntensity = this.material_config.mer_value[1] / 255;
-			material.roughness = this.material_config.mer_value[2] / 255;
-		}
-		material.needsUpdate = true;
-	}
+                       generateMap(0, 'metalnessMap');
+                       generateMap(1, 'emissiveMap');
+                       generateMap(2, 'roughnessMap');
+                       if (subsurface > 0) {
+                               generateMap(3, 'thicknessMap');
+                               material.transmission = 1;
+                               material.thickness = 1;
+                       } else {
+                               material.thicknessMap = null;
+                               material.transmission = 0;
+                               material.thickness = 0;
+                       }
+                       material.emissive.set(0xffffff);
+                       material.emissiveIntensity = 1;
+                       material.metalness = 1;
+                       material.roughness = 1;
+               } else {
+                       material.metalnessMap = null;
+                       material.emissiveMap = material.map;
+                       material.roughnessMap = null;
+                       material.emissive.set(0xffffff);
+                       material.metalness = this.material_config.mer_value[0] / 255;
+                       material.emissiveIntensity = this.material_config.mer_value[1] / 255;
+                       material.roughness = this.material_config.mer_value[2] / 255;
+                       if (subsurface > 0) {
+                               material.transmission = subsurface / 255;
+                               material.thickness = 1;
+                       } else {
+                               material.transmission = 0;
+                               material.thickness = 0;
+                       }
+                       material.thicknessMap = null;
+               }
+               material.needsUpdate = true;
+       }
 	getMaterial() {
 		if (!this._static.properties.material) {
 			this.updateMaterial();
