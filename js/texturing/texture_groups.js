@@ -1,4 +1,30 @@
 
+function applySubsurfaceShader(material, intensity) {
+       material.userData = material.userData || {};
+       material.defines = material.defines || {};
+       if (material.thicknessMap) {
+               material.defines.USE_THICKNESSMAP = '';
+       } else if (material.defines.USE_THICKNESSMAP) {
+               delete material.defines.USE_THICKNESSMAP;
+       }
+       material.onBeforeCompile = shader => {
+               shader.uniforms.subsurfaceIntensity = {value: intensity};
+               shader.fragmentShader = shader.fragmentShader.replace(
+                       '#include <lights_fragment_begin>',
+                       `#include <lights_fragment_begin>\nfloat subsurfaceAmount = subsurfaceIntensity;\n#if defined(USE_UV) && defined(USE_THICKNESSMAP)\n subsurfaceAmount *= texture2D(thicknessMap, vUv).r;\n#endif\nreflectedLight.directDiffuse += subsurfaceAmount * diffuseColor.rgb;`
+               );
+               material.userData.shader = shader;
+       };
+       if (material.userData.shader) {
+               material.userData.shader.uniforms.subsurfaceIntensity.value = intensity;
+       }
+}
+function removeSubsurfaceShader(material) {
+       if (material.userData && material.userData.shader) delete material.userData.shader;
+       material.onBeforeCompile = null;
+       if (material.defines && material.defines.USE_THICKNESSMAP) delete material.defines.USE_THICKNESSMAP;
+}
+
 class TextureGroup {
 	constructor(data, uuid) {
 		this.uuid = uuid ?? guid();
@@ -177,10 +203,10 @@ class TextureGroup {
                                return new ImageData(emissive_data, mer_tex.width, mer_tex.height);
                        }
 
-                      let emissive_canvas = material.emissiveMap?.image || document.createElement('canvas');
-                      let rough_canvas = material.roughnessMap?.image || document.createElement('canvas');
-                      let thickness_canvas = subsurface > 0 ? (material.thicknessMap?.image || document.createElement('canvas')) : null;
-                      let metal_canvas = thickness_canvas ? null : (material.metalnessMap?.image || document.createElement('canvas'));
+                     let emissive_canvas = material.emissiveMap?.image || document.createElement('canvas');
+                     let rough_canvas = material.roughnessMap?.image || document.createElement('canvas');
+                     let thickness_canvas = subsurface > 0 ? (material.thicknessMap?.image || document.createElement('canvas')) : null;
+                     let metal_canvas = thickness_canvas ? null : (material.metalnessMap?.image || document.createElement('canvas'));
 
                       emissive_canvas.width = rough_canvas.width = mer_tex.width;
                       emissive_canvas.height = rough_canvas.height = mer_tex.height;
@@ -242,20 +268,20 @@ class TextureGroup {
                               material.metalness = 0;
                       }
 
-                      if (thickness_ctx) {
+                     if (thickness_ctx) {
                               thickness_ctx.putImageData(thickness_data, 0, 0);
                               material.thicknessMap = new THREE.Texture(thickness_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
                               material.thicknessMap.needsUpdate = true;
-                              material.transmission = 1;
-                              material.thickness = 1;
-                      } else {
+                              applySubsurfaceShader(material, 1);
+                     } else {
                               material.thicknessMap = null;
-                              material.transmission = 0;
-                              material.thickness = 0;
-                      }
-                      material.emissive.set(0xffffff);
-                      material.emissiveIntensity = 1;
-                      material.roughness = 1;
+                              removeSubsurfaceShader(material);
+                     }
+                     material.transmission = 0;
+                     material.thickness = 0;
+                     material.emissive.set(0xffffff);
+                     material.emissiveIntensity = 1;
+                     material.roughness = 1;
                } else {
                        material.metalnessMap = null;
                        material.emissiveMap = material.map;
@@ -265,14 +291,16 @@ class TextureGroup {
                        let subsurface_uniform = subsurface;
                        if (subsurface_uniform > 0) {
                                metal = 0;
+                               applySubsurfaceShader(material, subsurface_uniform / 255);
                        } else {
                                subsurface_uniform = 0;
+                               removeSubsurfaceShader(material);
                        }
                        material.metalness = metal / 255;
                        material.emissiveIntensity = this.material_config.mer_value[1] / 255;
                        material.roughness = this.material_config.mer_value[2] / 255;
-                       material.transmission = subsurface_uniform / 255;
-                       material.thickness = subsurface_uniform > 0 ? 1 : 0;
+                       material.transmission = 0;
+                       material.thickness = 0;
                        material.thicknessMap = null;
                }
                material.needsUpdate = true;
