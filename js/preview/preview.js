@@ -2131,17 +2131,14 @@ function updateShading() {
 			Canvas.material_light = light = new THREE.DirectionalLight();
 		}
 		light.color.copy(Canvas.global_light_color);
-		light.intensity = 0.7 * settings_brightness;
+                light.intensity = Canvas.material_light_intensity * settings_brightness;
 
-		Canvas.scene.add(light);
-		switch (Canvas.global_light_side) {
-			case 0: light.position.set(60, 100, 20); break;
-			case 1: light.position.set(-10, 20, 100); break;
-			case 2: light.position.set(10, 20, -100); break;
-			case 3: light.position.set(100, 20, -10); break;
-			case 4: light.position.set(-100, 20, 10); break;
-			case 5: light.position.set(20, -100, 0); break;
-		}
+                const radius = 100;
+                const phi = THREE.MathUtils.degToRad(90 - Canvas.material_light_pitch);
+                const theta = THREE.MathUtils.degToRad(Canvas.material_light_yaw);
+                light.position.setFromSphericalCoords(radius, phi, theta);
+
+                Canvas.scene.add(light);
 
 		scene.add(Sun);
 		Sun.intensity *= 0.5;
@@ -2275,18 +2272,49 @@ BARS.defineActions(function() {
 		linked_setting: 'motion_trails',
 		condition: {modes: ['animate']}
 	})
-	new Toggle('pixel_grid', {
-		icon: 'grid_on',
-		category: 'view',
-		condition: {modes: ['edit']},
-		keybind: new Keybind({key: 'g'}),
-		linked_setting: 'pixel_grid'
-	})
+        new Toggle('pixel_grid', {
+                icon: 'grid_on',
+                category: 'view',
+                condition: {modes: ['edit']},
+                keybind: new Keybind({key: 'g'}),
+                linked_setting: 'pixel_grid'
+        })
 
-	function getRotatedIcon(key, angle) {
-		let icon_node = Blockbench.getIconNode(key);
-		icon_node.style.transform = `rotate(${angle}deg)`;
-		return icon_node;
+        new BarSlider('pbr_light_intensity', {
+                category: 'view',
+                condition: () => BarItems.view_mode.value == 'material',
+                min: 0, max: 2, step: 0.1, width: 80,
+                value: Canvas.material_light_intensity,
+                onChange(slider) {
+                        Canvas.material_light_intensity = slider.value;
+                        Canvas.updateShading();
+                }
+        })
+        new BarSlider('pbr_light_yaw', {
+                category: 'view',
+                condition: () => BarItems.view_mode.value == 'material',
+                min: -180, max: 180, step: 1, width: 80,
+                value: Canvas.material_light_yaw,
+                onChange(slider) {
+                        Canvas.material_light_yaw = slider.value;
+                        Canvas.updateShading();
+                }
+        })
+        new BarSlider('pbr_light_pitch', {
+                category: 'view',
+                condition: () => BarItems.view_mode.value == 'material',
+                min: -90, max: 90, step: 1, width: 80,
+                value: Canvas.material_light_pitch,
+                onChange(slider) {
+                        Canvas.material_light_pitch = slider.value;
+                        Canvas.updateShading();
+                }
+        })
+
+        function getRotatedIcon(key, angle) {
+                let icon_node = Blockbench.getIconNode(key);
+                icon_node.style.transform = `rotate(${angle}deg)`;
+                return icon_node;
 	}
 	new BarSelect('split_screen', {
 		icon: 'grid_view',

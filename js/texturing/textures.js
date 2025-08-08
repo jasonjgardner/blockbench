@@ -1891,14 +1891,17 @@ class Texture {
 						if (group) group.updateMaterial();
 						Undo.finishEdit('Change texture PBR channel');
 					}
-					return [
-						{name: 'menu.texture.pbr_channel.color', icon: texture.pbr_channel == 'color' ? 'far.fa-dot-circle' : 'far.fa-circle', click() {applyChannel('color')}},
-						{name: 'menu.texture.pbr_channel.normal', icon: texture.pbr_channel == 'normal' ? 'far.fa-dot-circle' : 'far.fa-circle', click() {applyChannel('normal')}},
-						{name: 'menu.texture.pbr_channel.height', icon: texture.pbr_channel == 'height' ? 'far.fa-dot-circle' : 'far.fa-circle', click() {applyChannel('height')}},
-						{name: 'menu.texture.pbr_channel.mer', icon: texture.pbr_channel == 'mer' ? 'far.fa-dot-circle' : 'far.fa-circle', click() {applyChannel('mer')}},
-					]
-				}
-			},
+                                        let mer_name = group?.material_config?.subsurface_value
+                                                ? 'menu.texture.pbr_channel.mer_subsurface'
+                                                : 'menu.texture.pbr_channel.mer';
+                                        return [
+                                                {name: 'menu.texture.pbr_channel.color', icon: texture.pbr_channel == 'color' ? 'far.fa-dot-circle' : 'far.fa-circle', click() {applyChannel('color')}},
+                                                {name: 'menu.texture.pbr_channel.normal', icon: texture.pbr_channel == 'normal' ? 'far.fa-dot-circle' : 'far.fa-circle', click() {applyChannel('normal')}},
+                                                {name: 'menu.texture.pbr_channel.height', icon: texture.pbr_channel == 'height' ? 'far.fa-dot-circle' : 'far.fa-circle', click() {applyChannel('height')}},
+                                                {name: mer_name, icon: texture.pbr_channel == 'mer' ? 'far.fa-dot-circle' : 'far.fa-circle', click() {applyChannel('mer')}},
+                                        ]
+                                }
+                        },
 			{
 				icon: 'list',
 				name: 'menu.texture.render_mode',
@@ -2389,12 +2392,12 @@ Interface.definePanels(function() {
 			},
 			temp_color: null
 		}},
-		methods: {
-			getDescription(texture) {
-				if (texture.error) {
-					return texture.getErrorMessage()
-				} else {
-					let message = texture.width + ' x ' + texture.height + 'px';
+                methods: {
+                       getDescription(texture) {
+                               if (texture.error) {
+                                       return texture.getErrorMessage()
+                               } else {
+                                       let message = texture.width + ' x ' + texture.height + 'px';
 					if (!Format.image_editor) {
 						let uv_size = texture.width / texture.getUVWidth() * 16;
 						message += ` (${trimFloatNumber(uv_size, 2)}x)`;
@@ -2402,14 +2405,20 @@ Interface.definePanels(function() {
 					if (texture.frameCount > 1) {
 						message += ` - ${texture.currentFrame+1}/${texture.frameCount}`
 					}
-					return message;
-				}
-			},
-			getTextureIconOffset(texture) {
-				if (!texture.currentFrame) return;
-				let val = texture.currentFrame * -48 * (texture.display_height / texture.width);
-				return `${val}px`;
-			},
+                                       return message;
+                               }
+                       },
+                        getPbrChannel(texture) {
+                                if (texture.pbr_channel == 'mer' && texture.getGroup()?.material_config?.subsurface_value) {
+                                        return 'mer_subsurface';
+                                }
+                                return texture.pbr_channel;
+                        },
+                        getTextureIconOffset(texture) {
+                               if (!texture.currentFrame) return;
+                               let val = texture.currentFrame * -48 * (texture.display_height / texture.width);
+                               return `${val}px`;
+                       },
 			highlightTexture(event) {
 				if (!Format.single_texture && this.texture.error) {
 					let material = this.texture.getMaterial();
@@ -2670,7 +2679,7 @@ Interface.definePanels(function() {
 				@mousedown.stop="dragTexture($event)" @touchstart.stop="dragTexture($event)"
 				@contextmenu.prevent.stop="texture.showContextMenu($event)"
 			>
-				<i v-if="texture.getGroup()?.is_material" class="material-icons icon pbr_channel_icon">{{ pbr_channels[texture.pbr_channel].icon }}</i>
+                                <i v-if="texture.getGroup()?.is_material" class="material-icons icon pbr_channel_icon">{{ pbr_channels[getPbrChannel(texture)].icon }}</i>
 				<div class="texture_icon_wrapper">
 					<img v-bind:texid="texture.id" v-bind:src="texture.source" class="texture_icon" width="48px" alt="" v-if="texture.show_icon" :style="{marginTop: getTextureIconOffset(texture)}" />
 					<i class="material-icons texture_error" v-bind:title="texture.getErrorMessage()" v-if="texture.error">priority_high</i>
