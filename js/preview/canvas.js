@@ -423,6 +423,9 @@ const Canvas = {
 	transparentMaterial: new THREE.MeshBasicMaterial({visible: false, name: 'invisible'}),
 	global_light_color: new THREE.Color(0xffffff),
 	global_light_side: 0,
+        material_light_intensity: 0.7,
+        material_light_yaw: 45,
+        material_light_pitch: 45,
 
 	hover_helper_line: (function() {
 		let material = new THREE.LineBasicMaterial({color: 0xA4A5CA, linewidth: 2});
