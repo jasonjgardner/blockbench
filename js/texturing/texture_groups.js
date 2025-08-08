@@ -203,7 +203,7 @@ class TextureGroup {
                                let rough = image_data.data[i + 2];
                                let subs = image_data.data[i + 3];
 
-                               if (thickness_data && subs >= metal) {
+                               if (thickness_data && subs > 0) {
                                        thickness_data.data[i + 0] = subs;
                                        thickness_data.data[i + 1] = subs;
                                        thickness_data.data[i + 2] = subs;
@@ -253,7 +253,7 @@ class TextureGroup {
                        material.emissive.set(0xffffff);
                        let metal = this.material_config.mer_value[0];
                        let subsurface_uniform = subsurface;
-                       if (subsurface_uniform >= metal) {
+                       if (subsurface_uniform > 0) {
                                metal = 0;
                        } else {
                                subsurface_uniform = 0;
@@ -381,7 +381,7 @@ class TextureGroupMaterialConfig {
                } else if (this.subsurface_value) {
                        let metal = this.mer_value[0];
                        let subs = this.subsurface_value;
-                       if (subs >= metal) {
+                       if (subs > 0) {
                                metal = 0;
                        } else {
                                subs = 0;
@@ -676,7 +676,7 @@ function importTextureSet(file) {
                                                let emissive = Math.clamp(color_array[1] ?? 0, 0, 255);
                                                let rough = Math.clamp(color_array[2] ?? 0, 0, 255);
                                                let subs = Math.clamp(color_array[3] ?? 0, 0, 255);
-                                               if (subs >= metal) {
+                                               if (subs > 0) {
                                                        metal = 0;
                                                } else {
                                                        subs = 0;
@@ -684,9 +684,9 @@ function importTextureSet(file) {
                                                texture_group.material_config.mer_value.V3_set([metal, emissive, rough]);
                                                texture_group.material_config.subsurface_value = subs;
                                        }
-					}
-				}
-			}
+                               }
+                       }
+               }
 		}
 		if (isApp) texture_group.material_config.saved = true;
 		new_texture_groups.push(texture_group);
