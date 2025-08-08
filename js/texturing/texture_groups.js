@@ -177,75 +177,85 @@ class TextureGroup {
                                return new ImageData(emissive_data, mer_tex.width, mer_tex.height);
                        }
 
-                       let metal_canvas = material.metalnessMap?.image || document.createElement('canvas');
-                       let emissive_canvas = material.emissiveMap?.image || document.createElement('canvas');
-                       let rough_canvas = material.roughnessMap?.image || document.createElement('canvas');
-                       let thickness_canvas = subsurface > 0 ? (material.thicknessMap?.image || document.createElement('canvas')) : null;
+                      let emissive_canvas = material.emissiveMap?.image || document.createElement('canvas');
+                      let rough_canvas = material.roughnessMap?.image || document.createElement('canvas');
+                      let thickness_canvas = subsurface > 0 ? (material.thicknessMap?.image || document.createElement('canvas')) : null;
+                      let metal_canvas = thickness_canvas ? null : (material.metalnessMap?.image || document.createElement('canvas'));
 
-                       metal_canvas.width = emissive_canvas.width = rough_canvas.width = mer_tex.width;
-                       metal_canvas.height = emissive_canvas.height = rough_canvas.height = mer_tex.height;
-                       if (thickness_canvas) {
-                               thickness_canvas.width = mer_tex.width;
-                               thickness_canvas.height = mer_tex.height;
-                       }
+                      emissive_canvas.width = rough_canvas.width = mer_tex.width;
+                      emissive_canvas.height = rough_canvas.height = mer_tex.height;
+                      if (metal_canvas) {
+                              metal_canvas.width = mer_tex.width;
+                              metal_canvas.height = mer_tex.height;
+                      }
+                      if (thickness_canvas) {
+                              thickness_canvas.width = mer_tex.width;
+                              thickness_canvas.height = mer_tex.height;
+                      }
 
-                       let metal_ctx = metal_canvas.getContext('2d');
-                       let emissive_ctx = emissive_canvas.getContext('2d');
-                       let rough_ctx = rough_canvas.getContext('2d');
-                       let thickness_ctx = thickness_canvas ? thickness_canvas.getContext('2d') : null;
+                      let emissive_ctx = emissive_canvas.getContext('2d');
+                      let rough_ctx = rough_canvas.getContext('2d');
+                      let thickness_ctx = thickness_canvas ? thickness_canvas.getContext('2d') : null;
+                      let metal_ctx = metal_canvas ? metal_canvas.getContext('2d') : null;
 
-                       let metal_data = metal_ctx.createImageData(mer_tex.width, mer_tex.height);
-                       let rough_data = rough_ctx.createImageData(mer_tex.width, mer_tex.height);
-                       let thickness_data = thickness_ctx ? thickness_ctx.createImageData(mer_tex.width, mer_tex.height) : null;
+                      let rough_data = rough_ctx.createImageData(mer_tex.width, mer_tex.height);
+                      let thickness_data = thickness_ctx ? thickness_ctx.createImageData(mer_tex.width, mer_tex.height) : null;
+                      let metal_data = metal_ctx ? metal_ctx.createImageData(mer_tex.width, mer_tex.height) : null;
 
-                       for (let i = 0; i < image_data.data.length; i += 4) {
-                               let metal = image_data.data[i + 0];
-                               let rough = image_data.data[i + 2];
-                               let subs = image_data.data[i + 3];
+                      for (let i = 0; i < image_data.data.length; i += 4) {
+                              let metal = image_data.data[i + 0];
+                              let rough = image_data.data[i + 2];
+                              let subs = image_data.data[i + 3];
 
-                               if (thickness_data && subs > 0) {
-                                       thickness_data.data[i + 0] = subs;
-                                       thickness_data.data[i + 1] = subs;
-                                       thickness_data.data[i + 2] = subs;
-                                       thickness_data.data[i + 3] = 255;
-                               } else {
-                                       metal_data.data[i + 0] = metal;
-                                       metal_data.data[i + 1] = metal;
-                                       metal_data.data[i + 2] = metal;
-                                       metal_data.data[i + 3] = 255;
-                               }
+                              if (thickness_data && subs > 0) {
+                                      thickness_data.data[i + 0] = subs;
+                                      thickness_data.data[i + 1] = subs;
+                                      thickness_data.data[i + 2] = subs;
+                                      thickness_data.data[i + 3] = 255;
+                              } else if (metal_data) {
+                                      metal_data.data[i + 0] = metal;
+                                      metal_data.data[i + 1] = metal;
+                                      metal_data.data[i + 2] = metal;
+                                      metal_data.data[i + 3] = 255;
+                              }
 
-                               rough_data.data[i + 0] = rough;
-                               rough_data.data[i + 1] = rough;
-                               rough_data.data[i + 2] = rough;
-                               rough_data.data[i + 3] = 255;
-                       }
+                              rough_data.data[i + 0] = rough;
+                              rough_data.data[i + 1] = rough;
+                              rough_data.data[i + 2] = rough;
+                              rough_data.data[i + 3] = 255;
+                      }
 
-                       metal_ctx.putImageData(metal_data, 0, 0);
-                       emissive_ctx.putImageData(extractEmissiveChannel(), 0, 0);
-                       rough_ctx.putImageData(rough_data, 0, 0);
-                       material.metalnessMap = new THREE.Texture(metal_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
-                       material.metalnessMap.needsUpdate = true;
-                       material.emissiveMap = new THREE.Texture(emissive_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
-                       material.emissiveMap.needsUpdate = true;
-                       material.roughnessMap = new THREE.Texture(rough_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
-                       material.roughnessMap.needsUpdate = true;
+                      emissive_ctx.putImageData(extractEmissiveChannel(), 0, 0);
+                      rough_ctx.putImageData(rough_data, 0, 0);
+                      material.emissiveMap = new THREE.Texture(emissive_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
+                      material.emissiveMap.needsUpdate = true;
+                      material.roughnessMap = new THREE.Texture(rough_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
+                      material.roughnessMap.needsUpdate = true;
 
-                       if (thickness_ctx) {
-                               thickness_ctx.putImageData(thickness_data, 0, 0);
-                               material.thicknessMap = new THREE.Texture(thickness_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
-                               material.thicknessMap.needsUpdate = true;
-                               material.transmission = 1;
-                               material.thickness = 1;
-                       } else {
-                               material.thicknessMap = null;
-                               material.transmission = 0;
-                               material.thickness = 0;
-                       }
-                       material.emissive.set(0xffffff);
-                       material.emissiveIntensity = 1;
-                       material.metalness = 1;
-                       material.roughness = 1;
+                      if (metal_ctx) {
+                              metal_ctx.putImageData(metal_data, 0, 0);
+                              material.metalnessMap = new THREE.Texture(metal_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
+                              material.metalnessMap.needsUpdate = true;
+                              material.metalness = 1;
+                      } else {
+                              material.metalnessMap = null;
+                              material.metalness = 0;
+                      }
+
+                      if (thickness_ctx) {
+                              thickness_ctx.putImageData(thickness_data, 0, 0);
+                              material.thicknessMap = new THREE.Texture(thickness_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
+                              material.thicknessMap.needsUpdate = true;
+                              material.transmission = 1;
+                              material.thickness = 1;
+                      } else {
+                              material.thicknessMap = null;
+                              material.transmission = 0;
+                              material.thickness = 0;
+                      }
+                      material.emissive.set(0xffffff);
+                      material.emissiveIntensity = 1;
+                      material.roughness = 1;
                } else {
                        material.metalnessMap = null;
                        material.emissiveMap = material.map;
