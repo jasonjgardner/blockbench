@@ -154,63 +154,87 @@ class TextureGroup {
 		if (mer_tex && mer_tex.img?.naturalWidth && mer_tex.width) {
 			let image_data = mer_tex.canvas.getContext('2d').getImageData(0, 0, mer_tex.width, mer_tex.height);
 
-			const extractEmissiveChannel = () => {
-				// The green channel is the emissive level.
-				// Use it as an mask on the color texture to create the emissive map.
-				const color_data = color_tex.canvas.getContext('2d').getImageData(0, 0, mer_tex.width, mer_tex.height);
-				let emissive_data = new Uint8ClampedArray(color_data.data.length);
-				for (let i = 0; i < image_data.data.length; i += 4) {
-					let green_value = image_data.data[i + 1];
-					if (image_data.data[i + 1] > 0) {
-						emissive_data[i] = Math.round(color_data.data[i] * (green_value/255));
-						emissive_data[i + 1] = Math.round(color_data.data[i + 1] * (green_value/255));
-						emissive_data[i + 2] = Math.round(color_data.data[i + 2] * (green_value/255));
-						emissive_data[i + 3] = 255;
-					} else {
-						emissive_data[i] = 0;
-						emissive_data[i + 1] = 0;
-						emissive_data[i + 2] = 0;
-						emissive_data[i + 3] = 255;
-					}
-				}
+                       const extractEmissiveChannel = () => {
+                               // The green channel is the emissive level.
+                               // Use it as a mask on the color texture to create the emissive map.
+                               const color_data = color_tex.canvas.getContext('2d').getImageData(0, 0, mer_tex.width, mer_tex.height);
+                               let emissive_data = new Uint8ClampedArray(color_data.data.length);
+                               for (let i = 0; i < image_data.data.length; i += 4) {
+                                       let green_value = image_data.data[i + 1];
+                                       if (green_value > 0) {
+                                               emissive_data[i] = Math.round(color_data.data[i] * (green_value/255));
+                                               emissive_data[i + 1] = Math.round(color_data.data[i + 1] * (green_value/255));
+                                               emissive_data[i + 2] = Math.round(color_data.data[i + 2] * (green_value/255));
+                                               emissive_data[i + 3] = 255;
+                                       } else {
+                                               emissive_data[i] = 0;
+                                               emissive_data[i + 1] = 0;
+                                               emissive_data[i + 2] = 0;
+                                               emissive_data[i + 3] = 255;
+                                       }
+                               }
 
-				return new ImageData(emissive_data, mer_tex.width, mer_tex.height);
-			}
+                               return new ImageData(emissive_data, mer_tex.width, mer_tex.height);
+                       }
 
-			const extractGrayscaleValue = (channel) => {
-				let grayscale_data = new Uint8ClampedArray(image_data.data.length);
-				for (let i = 0; i < image_data.data.length; i += 4) {
-					grayscale_data[i + 0] = image_data.data[i + channel];
-					grayscale_data[i + 1] = image_data.data[i + channel];
-					grayscale_data[i + 2] = image_data.data[i + channel];
-					grayscale_data[i + 3] = 255;
-				}
+                       let metal_canvas = material.metalnessMap?.image || document.createElement('canvas');
+                       let emissive_canvas = material.emissiveMap?.image || document.createElement('canvas');
+                       let rough_canvas = material.roughnessMap?.image || document.createElement('canvas');
+                       let thickness_canvas = subsurface > 0 ? (material.thicknessMap?.image || document.createElement('canvas')) : null;
 
-				return new ImageData(grayscale_data, mer_tex.width, mer_tex.height);
-			}
+                       metal_canvas.width = emissive_canvas.width = rough_canvas.width = mer_tex.width;
+                       metal_canvas.height = emissive_canvas.height = rough_canvas.height = mer_tex.height;
+                       if (thickness_canvas) {
+                               thickness_canvas.width = mer_tex.width;
+                               thickness_canvas.height = mer_tex.height;
+                       }
 
-			function generateMap(source_channel, key) {
-				let canvas = material[key]?.image;
-				if (!canvas || key == 'emissiveMap') {
-					canvas = document.createElement('canvas');
-				}
-				let ctx = canvas.getContext('2d');
-				canvas.width = mer_tex.width;
-				canvas.height = mer_tex.height;
-				ctx.fillStyle = 'black';
-				ctx.fillRect(0, 0, mer_tex.width, mer_tex.height);
-				// document.body.append(canvas);
+                       let metal_ctx = metal_canvas.getContext('2d');
+                       let emissive_ctx = emissive_canvas.getContext('2d');
+                       let rough_ctx = rough_canvas.getContext('2d');
+                       let thickness_ctx = thickness_canvas ? thickness_canvas.getContext('2d') : null;
 
-				ctx.putImageData(source_channel === 1 ? extractEmissiveChannel() : extractGrayscaleValue(source_channel), 0, 0);
+                       let metal_data = metal_ctx.createImageData(mer_tex.width, mer_tex.height);
+                       let rough_data = rough_ctx.createImageData(mer_tex.width, mer_tex.height);
+                       let thickness_data = thickness_ctx ? thickness_ctx.createImageData(mer_tex.width, mer_tex.height) : null;
 
-				material[key] = new THREE.Texture(canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
-				material[key].needsUpdate = true;
-			}
-                       generateMap(0, 'metalnessMap');
-                       generateMap(1, 'emissiveMap');
-                       generateMap(2, 'roughnessMap');
-                       if (subsurface > 0) {
-                               generateMap(3, 'thicknessMap');
+                       for (let i = 0; i < image_data.data.length; i += 4) {
+                               let metal = image_data.data[i + 0];
+                               let rough = image_data.data[i + 2];
+                               let subs = image_data.data[i + 3];
+
+                               if (thickness_data && subs >= metal) {
+                                       thickness_data.data[i + 0] = subs;
+                                       thickness_data.data[i + 1] = subs;
+                                       thickness_data.data[i + 2] = subs;
+                                       thickness_data.data[i + 3] = 255;
+                               } else {
+                                       metal_data.data[i + 0] = metal;
+                                       metal_data.data[i + 1] = metal;
+                                       metal_data.data[i + 2] = metal;
+                                       metal_data.data[i + 3] = 255;
+                               }
+
+                               rough_data.data[i + 0] = rough;
+                               rough_data.data[i + 1] = rough;
+                               rough_data.data[i + 2] = rough;
+                               rough_data.data[i + 3] = 255;
+                       }
+
+                       metal_ctx.putImageData(metal_data, 0, 0);
+                       emissive_ctx.putImageData(extractEmissiveChannel(), 0, 0);
+                       rough_ctx.putImageData(rough_data, 0, 0);
+                       material.metalnessMap = new THREE.Texture(metal_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
+                       material.metalnessMap.needsUpdate = true;
+                       material.emissiveMap = new THREE.Texture(emissive_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
+                       material.emissiveMap.needsUpdate = true;
+                       material.roughnessMap = new THREE.Texture(rough_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
+                       material.roughnessMap.needsUpdate = true;
+
+                       if (thickness_ctx) {
+                               thickness_ctx.putImageData(thickness_data, 0, 0);
+                               material.thicknessMap = new THREE.Texture(thickness_canvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter);
+                               material.thicknessMap.needsUpdate = true;
                                material.transmission = 1;
                                material.thickness = 1;
                        } else {
@@ -227,16 +251,18 @@ class TextureGroup {
                        material.emissiveMap = material.map;
                        material.roughnessMap = null;
                        material.emissive.set(0xffffff);
-                       material.metalness = this.material_config.mer_value[0] / 255;
+                       let metal = this.material_config.mer_value[0];
+                       let subsurface_uniform = subsurface;
+                       if (subsurface_uniform >= metal) {
+                               metal = 0;
+                       } else {
+                               subsurface_uniform = 0;
+                       }
+                       material.metalness = metal / 255;
                        material.emissiveIntensity = this.material_config.mer_value[1] / 255;
                        material.roughness = this.material_config.mer_value[2] / 255;
-                       if (subsurface > 0) {
-                               material.transmission = subsurface / 255;
-                               material.thickness = 1;
-                       } else {
-                               material.transmission = 0;
-                               material.thickness = 0;
-                       }
+                       material.transmission = subsurface_uniform / 255;
+                       material.thickness = subsurface_uniform > 0 ? 1 : 0;
                        material.thicknessMap = null;
                }
                material.needsUpdate = true;
@@ -345,18 +371,29 @@ class TextureGroupMaterialConfig {
 		} else {
 			texture_set.color = this.color_value.slice();
 		}
-		if (mer_tex) {
-			let texture_name = getTextureName(mer_tex);
-			if (this.subsurface_value) {
-				texture_set.metalness_emissive_roughness_subsurface = texture_name;
-			} else {
-				texture_set.metalness_emissive_roughness = texture_name;
-			}
-		} else if (this.subsurface_value) {
-			texture_set.metalness_emissive_roughness_subsurface = [...this.mer_value, this.subsurface_value];
-		} else if (!this.mer_value.allEqual(0)) {
-			texture_set.metalness_emissive_roughness = this.mer_value.slice();
-		}
+               if (mer_tex) {
+                       let texture_name = getTextureName(mer_tex);
+                       if (this.subsurface_value) {
+                               texture_set.metalness_emissive_roughness_subsurface = texture_name;
+                       } else {
+                               texture_set.metalness_emissive_roughness = texture_name;
+                       }
+               } else if (this.subsurface_value) {
+                       let metal = this.mer_value[0];
+                       let subs = this.subsurface_value;
+                       if (subs >= metal) {
+                               metal = 0;
+                       } else {
+                               subs = 0;
+                       }
+                       if (subs > 0) {
+                               texture_set.metalness_emissive_roughness_subsurface = [metal, this.mer_value[1], this.mer_value[2], subs];
+                       } else if (metal > 0 || this.mer_value[1] > 0 || this.mer_value[2] > 0) {
+                               texture_set.metalness_emissive_roughness = [metal, this.mer_value[1], this.mer_value[2]];
+                       }
+               } else if (!this.mer_value.allEqual(0)) {
+                       texture_set.metalness_emissive_roughness = this.mer_value.slice();
+               }
 		if (normal_tex) {
 			texture_set.normal = getTextureName(normal_tex);
 		} else if (height_tex) {
@@ -417,9 +454,11 @@ class TextureGroupMaterialConfig {
 			}
 			texture_options_optional[texture.uuid] = texture_options[texture.uuid] = texture_options_custom[texture.uuid] = opt;
 		}
-		new Dialog('material_config', {
-			title: 'dialog.material_config.title',
-			form: {
+               let mer_label = this.subsurface_value ? 'menu.texture.pbr_channel.mer_subsurface' : 'dialog.material_config.mer';
+
+               new Dialog('material_config', {
+                       title: 'dialog.material_config.title',
+                       form: {
 				color: {
 					type: 'select',
 					label: 'menu.texture.pbr_channel.color',
@@ -438,12 +477,12 @@ class TextureGroupMaterialConfig {
 					}
 				},
 				'_mers': '_',
-				mer: {
-					type: 'select',
-					label: 'dialog.material_config.mer',
-					options: texture_options_custom,
-					value: textures.find(tex => tex.pbr_channel == 'mer')?.uuid ?? 'uniform',
-				},
+                               mer: {
+                                       type: 'select',
+                                       label: mer_label,
+                                       options: texture_options_custom,
+                                       value: textures.find(tex => tex.pbr_channel == 'mer')?.uuid ?? 'uniform',
+                               },
 				mer_value: {
 					label: 'dialog.material_config.mer_value',
 					condition: form => form.mer == 'uniform',
@@ -632,10 +671,19 @@ function importTextureSet(file) {
 							}
 						} else if (key == 'metalness_emissive_roughness') {
 							texture_group.material_config.mer_value.V3_set(color_array);
-						} else if (key == 'metalness_emissive_roughness_subsurface') {
-							texture_group.material_config.mer_value.V3_set(color_array);
-							texture_group.material_config.subsurface_value = Math.clamp(color_array[3] ?? 0, 0, 255);
-						}
+                                       } else if (key == 'metalness_emissive_roughness_subsurface') {
+                                               let metal = Math.clamp(color_array[0] ?? 0, 0, 255);
+                                               let emissive = Math.clamp(color_array[1] ?? 0, 0, 255);
+                                               let rough = Math.clamp(color_array[2] ?? 0, 0, 255);
+                                               let subs = Math.clamp(color_array[3] ?? 0, 0, 255);
+                                               if (subs >= metal) {
+                                                       metal = 0;
+                                               } else {
+                                                       subs = 0;
+                                               }
+                                               texture_group.material_config.mer_value.V3_set([metal, emissive, rough]);
+                                               texture_group.material_config.subsurface_value = subs;
+                                       }
 					}
 				}
 			}
