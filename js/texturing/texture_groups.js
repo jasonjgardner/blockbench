@@ -2,21 +2,34 @@
 function applySubsurfaceShader(material, intensity) {
        material.userData = material.userData || {};
        material.defines = material.defines || {};
+
        if (material.thicknessMap) {
                material.defines.USE_THICKNESSMAP = '';
        } else if (material.defines.USE_THICKNESSMAP) {
                delete material.defines.USE_THICKNESSMAP;
        }
+
        material.onBeforeCompile = shader => {
                shader.uniforms.subsurfaceIntensity = {value: intensity};
-               shader.fragmentShader = shader.fragmentShader.replace(
-                       '#include <lights_fragment_begin>',
-                       `#include <lights_fragment_begin>\nfloat subsurfaceAmount = subsurfaceIntensity;\n#if defined(USE_UV) && defined(USE_THICKNESSMAP)\n subsurfaceAmount *= texture2D(thicknessMap, vUv).r;\n#endif\nreflectedLight.directDiffuse += subsurfaceAmount * diffuseColor.rgb;`
-               );
+               if (material.thicknessMap) {
+                       shader.uniforms.thicknessMap = {value: material.thicknessMap};
+               }
+               shader.fragmentShader = shader.fragmentShader
+                       .replace(
+                               '#include <common>',
+                               '#include <common>\nuniform float subsurfaceIntensity;\n#ifdef USE_THICKNESSMAP\nuniform sampler2D thicknessMap;\n#endif'
+                       )
+                       .replace(
+                               '#include <lights_fragment_begin>',
+                               `#include <lights_fragment_begin>\nfloat subsurfaceAmount = subsurfaceIntensity;\n#if defined(USE_UV) && defined(USE_THICKNESSMAP)\n subsurfaceAmount *= texture2D(thicknessMap, vUv).r;\n#endif\nreflectedLight.directDiffuse += subsurfaceAmount * diffuseColor.rgb;`
+                       );
                material.userData.shader = shader;
        };
        if (material.userData.shader) {
                material.userData.shader.uniforms.subsurfaceIntensity.value = intensity;
+               if (material.thicknessMap && material.userData.shader.uniforms.thicknessMap) {
+                       material.userData.shader.uniforms.thicknessMap.value = material.thicknessMap;
+               }
        }
 }
 function removeSubsurfaceShader(material) {
